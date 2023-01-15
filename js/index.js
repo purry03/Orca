@@ -32,22 +32,7 @@
     };
 
 
-    const elements = [{
-            glyph: 'clock',
-            position: {
-                x: 10,
-                y: 10
-            }
-        },
-        {
-            glyph: 'signal',
-            position: {
-                x: 11,
-                y: 10
-            },
-            direction: 'right'
-        }
-    ]
+    const elements = []
 
     const keys = {
         up: false,
@@ -80,7 +65,7 @@
                     placeElement('clock');
                     break;
                 case 8:
-                    backspace();
+                    deleteElement(glyphs.cursor.position.x,glyphs.cursor.position.y);
                     break;
                 default:
                     return; // exit this handler for other keys
@@ -122,11 +107,7 @@
         })
     }
 
-    function backspace() {
-        const {
-            x,
-            y
-        } = glyphs.cursor.position;
+    function deleteElement(x,y) {
         let indexToDelete = -1;
         for (const [i, element] of elements.entries()) {
             if (element.position.x == x && element.position.y == y) {
@@ -139,6 +120,15 @@
         }
     }
 
+    function removeOffgridElements(){
+        for (const [i, element] of elements.entries()) {
+            if (element.position.x >= rowCount || element.position.y >= columnCount) {
+               deleteElement(element.position.x,element.position.y)
+            }
+        }
+    }
+
+
     function resizeCanvas() {
         canvas.attr('width', window.innerWidth);
         canvas.attr('height', window.innerHeight);
@@ -147,14 +137,16 @@
     addKeyEventListener();
     resizeCanvas();
 
-    setInterval(drawStuff, 300);
+    setInterval(drawStuff, 100);
 
     function drawStuff() {
         clearCanvas();
+        removeOffgridElements();
         drawGrid();
         drawElements();
         drawCursor();
         updateSignals();
+        updateElements();
     }
 
 
@@ -165,7 +157,7 @@
     function updateSignals() {
         for (const [index, element] of elements.entries()) {
             if (element.glyph == 'signal') {
-                switch (element.direction) {
+                switch (element.data.direction) {
                     case 'up':
                         elements[index].position.y -= 1;
                         break;
@@ -179,6 +171,46 @@
                         elements[index].position.x += 1;
                         break;
                 }
+            }
+        }
+    }
+
+    function currentTime(){
+        return Date.now();
+    }
+
+    function spawnElement(glyph,x,y,data){
+        elements.push({
+            glyph,
+            position:{
+                x,
+                y,
+            },
+            data
+        })
+    }
+
+    function updateElements(){
+        for (const [index, element] of elements.entries()) {
+            switch(element.glyph){
+                case 'clock':
+                    // if data does not exist make it
+                    if(typeof(element.data) == 'undefined'){
+                        elements[index].data = {
+                            lastPulse: 0,
+                            Frequence: 1
+                        }
+                        elements[index].data.lastPulse = currentTime();
+                    }
+
+
+                    if(currentTime() - element.data.lastPulse >= 1000){
+                        elements[index].data.lastPulse = currentTime();
+                        spawnElement('signal',element.position.x+1,element.position.y,{
+                            direction: 'right'
+                        })
+                    }
+
             }
         }
     }
