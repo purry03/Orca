@@ -4,10 +4,13 @@
     // resize the canvas to fill browser window dynamically
     window.addEventListener('resize', resizeCanvas, false);
 
-    const padding = 50; // padding inside canvas     
+    const verticalPadding = 20; // padding inside canvas    
+    const horizontalPadding = 50; // padding inside canvas      
     const gridSize = 20; // distance between grid
     let columnCount = 0;
     let rowCount = 0;
+    let lastUpdate = currentTime();
+    let drawing = false;
     const glyphs = {
         grid: {
             text: '+',
@@ -131,7 +134,7 @@
 
     function resizeCanvas() {
         canvas.attr('width', window.innerWidth);
-        canvas.attr('height', window.innerHeight);
+        canvas.attr('height', window.innerHeight*0.85);
     }
 
     addKeyEventListener();
@@ -140,15 +143,26 @@
     setInterval(drawStuff, 100);
 
     function drawStuff() {
-        clearCanvas();
-        removeOffgridElements();
-        drawGrid();
-        drawElements();
-        drawCursor();
-        updateSignals();
-        updateElements();
+        if(!drawing){
+            drawing = true;
+            updateInspector();
+            lastUpdate = currentTime();
+            updateSignals();
+            updateElements();
+            removeOffgridElements();
+            clearCanvas();
+            drawGrid();
+            drawElements();
+            drawCursor();
+            drawStuff();
+            drawing = false;
+        }
     }
 
+    function updateInspector(){
+        $("#element-count").html(elements.length);
+        $("#update-rate").html(`${currentTime() - lastUpdate} ms`);
+    }
 
     function clearCanvas() {
         canvas.clearCanvas();
@@ -223,8 +237,8 @@
     }
 
     function drawGrid() {
-        rowCount = (canvas.width() - (padding * 2)) / gridSize;
-        columnCount = (canvas.height() - (padding * 2)) / gridSize;
+        rowCount = (canvas.width() - (horizontalPadding * 2)) / gridSize;
+        columnCount = (canvas.height() - (verticalPadding * 2)) / gridSize;
 
         for (let j = 0; j < columnCount; j++) {
             for (let i = 0; i < rowCount; i++) {
@@ -257,8 +271,6 @@
 
         }
 
-
-
         // warp cursor around screen
 
         if (glyphs.cursor.position.x < 0) {
@@ -289,11 +301,12 @@
             fillStyle: color,
             strokeStyle: color,
             strokeWidth: 1,
-            x: (x * gridSize) + padding,
-            y: (y * gridSize) + padding,
+            x: (x * gridSize) + horizontalPadding,
+            y: (y * gridSize) + verticalPadding,
             fontSize: size,
             fontFamily: 'monospace',
-            text: text
+            text: text,
+            fromCenter: false,
         });
     }
 
