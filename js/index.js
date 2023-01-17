@@ -14,10 +14,10 @@
     const glyphs = {
         grid: {
             text: '+',
-            color: 'rgba(255,255,255,0.05)',
+            color: 'rgba(255,255,255,0.07)',
         },
         cursor: {
-            text: '▮',
+            text: '■',
             color: 'rgba(255,255,255,0.5)',
             position: {
                 x: 0,
@@ -43,58 +43,62 @@
         left: false,
         right: false,
         shift: false,
+        control: false,
     }
 
 
     function addKeyEventListener() {
         document.onkeydown = function (e) {
-            switch (e.which) {
-                case 37: // left
-                    keys.left = true;
-                    break;
-                case 38: // up
-                    keys.up = true;
-                    break;
-                case 39: // right
-                    keys.right = true;
-                    break;
-                case 40: // down
-                    keys.down = true;
-                    break;
-                case 16: //shift
-                    keys.shift = true;
-                    break;
-                case 67: //c
-                    placeElement('clock');
-                    break;
-                case 8:
-                    deleteElement(glyphs.cursor.position.x,glyphs.cursor.position.y);
-                    break;
-                default:
-                    return; // exit this handler for other keys
+            const keycode = e.which;
+
+            if (keycode == 37) {
+                keys.left = true;
             }
+            if (keycode == 38) {
+                keys.up = true;
+            }
+            if (keycode == 39) {
+                keys.right = true;
+            }
+            if (keycode == 40) {
+                keys.down = true;
+            }
+            if (keycode == 16) {
+                keys.shift = true;
+            }
+            if (keycode == 67) {
+                placeElement('clock');
+            }
+            if (keycode == 8) {
+                deleteElement(glyphs.cursor.position.x, glyphs.cursor.position.y);
+            }
+            if(keycode == 17){
+                keys.control = true;
+            }
+
             e.preventDefault(); // prevent the default action (scroll / move caret)
         };
 
         document.onkeyup = function (e) {
-            switch (e.which) {
-                case 37: // left
-                    keys.left = false;
-                    break;
-                case 38: // up
-                    keys.up = false;
-                    break;
-                case 39: // right
-                    keys.right = false;
-                    break;
-                case 40: // down
-                    keys.down = false;
-                    break;
-                case 16:
-                    keys.shift = false;
-                    break;
-                default:
-                    return; // exit this handler for other keys
+            const keycode = e.which;
+
+            if (keycode == 37) {
+                keys.left = false;
+            }
+            if (keycode == 38) {
+                keys.up = false;
+            }
+            if (keycode == 39) {
+                keys.right = false;
+            }
+            if (keycode == 40) {
+                keys.down = false;
+            }
+            if (keycode == 16) {
+                keys.shift = false;
+            }
+            if(keycode == 17){
+                keys.control = false;
             }
             e.preventDefault(); // prevent the default action (scroll / move caret)
         };
@@ -110,7 +114,7 @@
         })
     }
 
-    function deleteElement(x,y) {
+    function deleteElement(x, y) {
         let indexToDelete = -1;
         for (const [i, element] of elements.entries()) {
             if (element.position.x == x && element.position.y == y) {
@@ -123,10 +127,10 @@
         }
     }
 
-    function removeOffgridElements(){
+    function removeOffgridElements() {
         for (const [i, element] of elements.entries()) {
-            if (element.position.x >= rowCount || element.position.y >= columnCount) {
-               deleteElement(element.position.x,element.position.y)
+            if (element.position.x >= rowCount || element.position.y >= columnCount || element.position.x < 0 || element.position.y <0) {
+                deleteElement(element.position.x, element.position.y)
             }
         }
     }
@@ -134,7 +138,7 @@
 
     function resizeCanvas() {
         canvas.attr('width', window.innerWidth);
-        canvas.attr('height', window.innerHeight*0.85);
+        canvas.attr('height', window.innerHeight * 0.85);
     }
 
     addKeyEventListener();
@@ -143,15 +147,16 @@
     setInterval(drawStuff, 100);
 
     function drawStuff() {
-        if(!drawing){
+        if (!drawing) {
             drawing = true;
             updateInspector();
             lastUpdate = currentTime();
+            clearCanvas();
+            drawGrid();
+            handleModifiers();
             updateSignals();
             updateElements();
             removeOffgridElements();
-            clearCanvas();
-            drawGrid();
             drawElements();
             drawCursor();
             drawStuff();
@@ -159,7 +164,36 @@
         }
     }
 
-    function updateInspector(){
+    function handleModifiers(){
+
+        const {x,y} = glyphs.cursor.position;
+
+        if(keys.control){
+            if(keys.up){
+                updateDirection(x,y,'up');
+            }
+            if(keys.down){
+                updateDirection(x,y,'down');
+            }
+            if(keys.left){
+                updateDirection(x,y,'left');
+            }
+            if(keys.right){
+                updateDirection(x,y,'right');
+            }
+        }
+    }
+
+    function updateDirection(x,y,direction){
+        for (const [i, element] of elements.entries()) {
+            if (element.position.x == x && element.position.y == y) {
+                elements[i].data.direction = direction;
+                break;
+            }
+        }
+    }
+
+    function updateInspector() {
         $("#element-count").html(elements.length);
         $("#update-rate").html(`${currentTime() - lastUpdate} ms`);
     }
@@ -189,14 +223,14 @@
         }
     }
 
-    function currentTime(){
+    function currentTime() {
         return Date.now();
     }
 
-    function spawnElement(glyph,x,y,data){
+    function spawnElement(glyph, x, y, data) {
         elements.push({
             glyph,
-            position:{
+            position: {
                 x,
                 y,
             },
@@ -204,24 +238,40 @@
         })
     }
 
-    function updateElements(){
+    function updateElements() {
         for (const [index, element] of elements.entries()) {
-            switch(element.glyph){
+            switch (element.glyph) {
                 case 'clock':
                     // if data does not exist make it
-                    if(typeof(element.data) == 'undefined'){
+                    if (typeof (element.data) == 'undefined') {
                         elements[index].data = {
                             lastPulse: 0,
                             Frequence: 1
                         }
                         elements[index].data.lastPulse = currentTime();
+                        elements[index].data.direction = 'right';
                     }
 
 
-                    if(currentTime() - element.data.lastPulse >= 1000){
+                    if (currentTime() - element.data.lastPulse >= 1000) {
                         elements[index].data.lastPulse = currentTime();
-                        spawnElement('signal',element.position.x+1,element.position.y,{
-                            direction: 'right'
+                        let signalSpawnPosition = {x:element.position.x , y:element.position.y}
+                        switch(element.data.direction){
+                            case 'left':
+                                signalSpawnPosition.x -= 1;
+                                break;
+                            case 'right':
+                                signalSpawnPosition.x += 1;
+                                break;
+                            case 'up':
+                                signalSpawnPosition.y -=1 ;
+                                break;
+                            case 'down':
+                                signalSpawnPosition.y += 1;
+                                break;
+                        }
+                        spawnElement('signal', signalSpawnPosition.x, signalSpawnPosition.y, {
+                            direction: element.data.direction
                         })
                     }
 
@@ -237,63 +287,76 @@
     }
 
     function drawGrid() {
-        rowCount = (canvas.width() - (horizontalPadding * 2)) / gridSize;
-        columnCount = (canvas.height() - (verticalPadding * 2)) / gridSize;
-
-        for (let j = 0; j < columnCount; j++) {
-            for (let i = 0; i < rowCount; i++) {
+        rowCount = Math.floor((canvas.width() - (horizontalPadding * 2)) / gridSize / 5)*5 + 1;
+        columnCount = Math.floor((canvas.height() - (verticalPadding * 2)) / gridSize / 5)*5 + 1;
+        for (let j = 0; j < columnCount; j+=1) {
+            for (let i = 0; i < rowCount; i+=1) {
+                if(i%5 ==0 || j%5 == 0){
                 drawText(i, j, glyphs.grid.color, glyphs.grid.text)
+                }
+                else{
+                drawText(i, j, glyphs.grid.color, '•', 8)
+                }
             }
         }
     }
 
     function updateCursor() {
 
-        let cursorSpeed = 1;
+        if(!keys.control){
 
-        if (keys.shift) {
-            cursorSpeed *= 5;
-        }
+            let cursorSpeed = 1;
 
-        if (keys.left) {
-            glyphs.cursor.position.x -= cursorSpeed;
+            if (keys.shift) {
+                cursorSpeed *= 5;
+            }
 
-        } else if (keys.right) {
-            glyphs.cursor.position.x += cursorSpeed;
+            if (keys.left) {
+                glyphs.cursor.position.x -= cursorSpeed;
+
+            } else if (keys.right) {
+                glyphs.cursor.position.x += cursorSpeed;
 
 
-        }
-        if (keys.up) {
-            glyphs.cursor.position.y -= cursorSpeed;
+            }
+            if (keys.up) {
+                glyphs.cursor.position.y -= cursorSpeed;
 
-        } else if (keys.down) {
-            glyphs.cursor.position.y += cursorSpeed;
+            } else if (keys.down) {
+                glyphs.cursor.position.y += cursorSpeed;
 
-        }
+            }
 
-        // warp cursor around screen
+            // warp cursor around screen
 
-        if (glyphs.cursor.position.x < 0) {
-            glyphs.cursor.position.x = (rowCount + glyphs.cursor.position.x)
-        }
+            if (glyphs.cursor.position.x < 0) {
+                glyphs.cursor.position.x = (rowCount + glyphs.cursor.position.x) + horizontalPadding
+            }
 
-        if (glyphs.cursor.position.x >= rowCount) {
-            glyphs.cursor.position.x = (glyphs.cursor.position.x - rowCount)
-        }
+            if (glyphs.cursor.position.x >= rowCount) {
+                glyphs.cursor.position.x = (glyphs.cursor.position.x - rowCount) + horizontalPadding
+            }
 
-        if (glyphs.cursor.position.y < 0) {
-            glyphs.cursor.position.y = (columnCount + glyphs.cursor.position.y)
-        }
+            if (glyphs.cursor.position.y < 0) {
+                glyphs.cursor.position.y = (columnCount + glyphs.cursor.position.y) + verticalPadding
+            }
 
-        if (glyphs.cursor.position.y >= columnCount) {
-            glyphs.cursor.position.y = (glyphs.cursor.position.y - columnCount)
+            if (glyphs.cursor.position.y >= columnCount) {
+                glyphs.cursor.position.y = (glyphs.cursor.position.y - columnCount) + verticalPadding
+            }
+        
         }
 
     }
 
     function drawCursor() {
         updateCursor();
-        drawText(glyphs.cursor.position.x, glyphs.cursor.position.y, glyphs.cursor.color, glyphs.cursor.text);
+        if(keys.control){
+            drawText(glyphs.cursor.position.x, glyphs.cursor.position.y, 'rgba(0,255,255,0.5)', glyphs.cursor.text);
+        }
+        else{
+            drawText(glyphs.cursor.position.x, glyphs.cursor.position.y, glyphs.cursor.color, glyphs.cursor.text);
+        }
     }
 
     function drawText(x, y, color, text, size = 12) {
